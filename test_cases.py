@@ -41,6 +41,7 @@ def test_print(line):
     If there is string concatenation with the '+' sign,
     the '+' sign is replaced with a comma.
     """
+    # If conditions are unmet, return None
     if re.match(r'^print', line) is None:
         return None
     elif re.search(r'^print(.*?)\(', line).group(1) != "":
@@ -76,10 +77,10 @@ def test_input(line):
     where var is the variable to store
     the return value of the input() function.
     """
-    print(re.match(r'^[a-zA-Z0-9\_]+ = input\(', line))
+    # If conditions are unmet, return None
     if re.match(r'^[a-zA-Z0-9\_]+ = input', line) is None:
         return None
-    elif re.search(r'^[a-zA-Z0-9\_]+ = input', line).group(1) != "":
+    elif re.search(r'^[a-zA-Z0-9\_]+ = input(.*?)\(', line).group(1) != "":
         return None
 
     output = []
@@ -128,7 +129,3 @@ def test_cases(lines):
             new_line.append(test_input(line))
 
     print(new_line)
-
-
-line = "text_1 = input()"
-test_input(line)
