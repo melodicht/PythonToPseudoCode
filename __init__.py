@@ -10,6 +10,27 @@ import re
 # def test_cases(line):
 #     test_print(line)
 
+def test_assignment(line):
+    """Checks to see if there is an assignment.
+
+    Key argument:
+    -- line: str
+
+    This works for all types of variables.
+    If it is a boolean, it will lowered case.
+    Functions have not been taken into consideration as of now.
+    """
+    match_object = re.search(r'^\w+ = (.*?)$', line)
+    if match_object is not None:
+        words = line.split('=')
+        variable = transform_identifier(words[0]).strip()
+        value = match_object.group(1).strip()
+        if value == 'True' or value == 'False':
+            value = value.lower()  # As per pseudocode conventions
+        return (variable + " <- " + value)
+
+    return None
+
 
 def test_print(line):
     """Check to see if it is a print statement.
