@@ -110,3 +110,6 @@ def transform_identifier(text):
 
 def teach_youjin():
     print("Teaching youjin.")
+
+def youjin_learnt():
+    print("I have learned!")
