@@ -1,6 +1,4 @@
-def test_cases(lines):
-    for line in lines:
-        
+import re
 
 
 def test_assignment(line):
@@ -78,6 +76,12 @@ def test_input(line):
     where var is the variable to store
     the return value of the input() function.
     """
+    print(re.match(r'^[a-zA-Z0-9\_]+ = input\(', line))
+    if re.match(r'^[a-zA-Z0-9\_]+ = input', line) is None:
+        return None
+    elif re.search(r'^[a-zA-Z0-9\_]+ = input', line).group(1) != "":
+        return None
+
     output = []
     quotation = re.search(r'input\((.*?)\)$', line).group(1)
 
@@ -115,3 +119,16 @@ def transform_identifier(text):
         return new_text
 
     return text
+
+
+def test_cases(lines):
+    new_line = []
+    for index, line in enumerate(lines):
+        if test_input(line) is not None:
+            new_line.append(test_input(line))
+
+    print(new_line)
+
+
+line = "text_1 = input()"
+test_input(line)
