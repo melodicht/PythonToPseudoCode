@@ -76,6 +76,8 @@ def test_input(line):
     Ultimately, it will lead to 'INPUT var',
     where var is the variable to store
     the return value of the input() function.
+
+    Concatenations accepted.
     """
     # If conditions are unmet, return None
     if re.match(r'^[a-zA-Z0-9\_]+ = input', line) is None:
