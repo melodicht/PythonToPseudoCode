@@ -46,6 +46,9 @@ def test_print(line):
     the opening rounded bracket, then,
     the text between the rounded brackets are identified,
     and returned along with 'OUTPUT'.
+
+    If there is string concatenation with the '+' sign,
+    the '+' sign is replaced with a comma.
     """
     if re.match(r'^print', line) is None:
         return None
@@ -53,6 +56,19 @@ def test_print(line):
         return None
 
     text = re.search(r'\((.*?)\)$', line).group(1)
+
+    if re.search(r'\+', text) is not None:  # NEED TO CHECK IF IT IS STR
+        output_values = text.split("+")
+        # Initialize final_text with the first word in the list
+        final_text = transform_identifier(output_values[0].strip())
+        output_values.pop(0)
+        for val in output_values:
+            final_text += (", " + transform_identifier(val.strip()))
+
+        text = final_text
+    else:
+        text = transform_identifier(text)
+
     return("OUTPUT " + text)
 
 
@@ -63,7 +79,7 @@ def test_input(line):
     -- line: str
 
     If there is a parameter in the input function,
-    then it will displayed as 'OUTPUT X',
+    then it will be displayed as 'OUTPUT X',
     where X is the parameter, as per the conventions.
     Ultimately, it will lead to 'INPUT var',
     where var is the variable to store
