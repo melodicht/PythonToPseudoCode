@@ -1,4 +1,5 @@
 import re
+from itertools import chain
 
 
 def test_assignment(line):
@@ -64,7 +65,7 @@ def test_print(line):
     return("OUTPUT " + text)
 
 
-def test_input(line):
+def test_input(line):  # NEED TO CONSIDER CONCAT!!
     """Checks to see if there is the input() function.
 
     Key argument:
@@ -126,6 +127,11 @@ def test_cases(lines):
     new_line = []
     for index, line in enumerate(lines):
         if test_input(line) is not None:
-            new_line.append(test_input(line))
+            for i in test_input(line):
+                new_line.append(i)
+        elif test_print(line) is not None:
+            new_line.append(test_print(line))
+        elif test_assignment is not None:
+            new_line.append(test_assignment(line))
 
-    print(new_line)
+    return new_line
