@@ -106,7 +106,3 @@ def transform_identifier(text):
         return new_text
 
     return text
-
-
-def teach_youjin():
-    print("Teaching youjin.")
