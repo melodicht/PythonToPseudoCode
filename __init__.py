@@ -36,16 +36,35 @@ def test_print(line):
 
 
 def test_input(line):
-    if re.match(r'input\(\)', line):  # If it is just input()
-        words = line.split('=')
-        # Since the first word is the variable
-        variable = transform_identifier(words[0])
+    """Checks to see if there is the input() function.
 
-        return("INPUT " + variable)
+    Key argument:
+    -- line: str
+
+    If there is a parameter in the input function,
+    then it will displayed as 'OUTPUT X',
+    where X is the parameter, as per the conventions.
+    Ultimately, it will lead to 'INPUT var',
+    where var is the variable to store
+    the return value of the input() function.
+    """
+    output = []
+    quotation = re.search(r'input\((.*?)\)$', line).group(1)
+
+    words = line.split('=')
+    # Since the first word is the variable
+    variable = transform_identifier(words[0].strip())
+
+    if quotation != "":
+        output.append("OUTPUT " + quotation)
+
+    output.append("INPUT " + variable)
+
+    return output
 
 
 def transform_identifier(text):
-    """Transforms the identifier to meet convetions.
+    """Transforms the identifier to meet conventions.
 
     Key arguments:
     -- text: str
