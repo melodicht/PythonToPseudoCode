@@ -1,5 +1,4 @@
 import re
-from itertools import chain
 
 
 def test_assignment(line):
@@ -14,7 +13,7 @@ def test_assignment(line):
     """
     match_object = re.search(r'^\w+ = (.*?)$', line)
     if match_object is not None:
-        words = line.split('=')
+        words = line.split('=', 1)  # Split on first occurence
         variable = transform_identifier(words[0]).strip()
         value = match_object.group(1).strip()
         if value == 'True' or value == 'False':
@@ -50,13 +49,13 @@ def test_print(line):
 
     text = re.search(r'\((.*?)\)$', line).group(1)
 
-    if re.search(r'\+', text) is not None:  # NEED TO CHECK IF IT IS STR
-        output_values = text.split("+")
-        # Initialize final_text with the first word in the list
-        final_text = transform_identifier(output_values[0].strip())
-        output_values.pop(0)
-        for val in output_values:
-            final_text += (", " + transform_identifier(val.strip()))
+    if re.search(r'\+', text) is not None:
+        # Plus signs inside quotes are not counted
+        plus_separator = re.compile(r'''((?:[^\+"']|"[^"]*"|'[^']*')+)''')
+        items = plus_separator.split(text)[1::2]
+        final_text = transform_identifier(items.pop(0).strip())
+        for item in items:
+            final_text += (", " + transform_identifier(item.strip()))
 
         text = final_text
     else:
@@ -65,7 +64,7 @@ def test_print(line):
     return("OUTPUT " + text)
 
 
-def test_input(line):  # NEED TO CONSIDER CONCAT!!
+def test_input(line):
     """Checks to see if there is the input() function.
 
     Key argument:
@@ -87,7 +86,7 @@ def test_input(line):  # NEED TO CONSIDER CONCAT!!
     output = []
     quotation = re.search(r'input\((.*?)\)$', line).group(1)
 
-    words = line.split('=')
+    words = line.split('=', 1)  # Split on first occurence
     # Since the first word is the variable
     variable = transform_identifier(words[0].strip())
 
@@ -113,8 +112,7 @@ def transform_identifier(text):
     """
     if re.search(r'\_', text):
         words = text.split("_")
-        new_text = words[0]
-        words.pop(0)
+        new_text = words.pop(0)
         for word in words:
             new_text += word.capitalize()
 
