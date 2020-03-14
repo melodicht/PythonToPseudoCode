@@ -295,6 +295,19 @@ class PseudocodeConverter:
             # print(current_line, self.converted_lines)
 
     def get_current_line(self, lines):
+        """Gets the current line.
+
+        Key arguments:
+        -- lines: str
+
+        Returns:
+        -- current_line: dict ({"content": x, "indents": y})
+
+        It treats 'lines' as a queue system,
+        dequeuing the first element,
+        and transforming that into a dict,
+        then returning it.
+        """
         current_line = lines.pop(0)
         if re.findall(r'^\s+', current_line) == []:
             indents = 0
