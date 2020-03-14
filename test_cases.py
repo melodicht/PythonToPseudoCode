@@ -101,6 +101,14 @@ def test_input(line):
 
 
 def test_if_statement(line):
+    """Checks if the first line begins with if (...):
+
+    Key argument:
+    -- line: str
+
+    Returns:
+    -- True or False: Bool
+    """
     if re.match(r'^if (.*?)+:$', line) is not None:
         return True
     else:
