@@ -115,16 +115,20 @@ def test_if_statement(line):
         return False
 
 
-def if_still_in_if_block(line):
+def in_if_block(line, initial_indent):
     """Check if the line is still in the if block.
 
     Key argument:
-    -- line: str
+    -- line: dict ({"content": x, "indents": y})
 
-    It only checks if the line is an 'else:', otherwise,
-    it is not in the if block.
+    If it is further tabbed or it is on the same line,
+    and is the "else:" statement,
+    then it is still in the if-block.
+    Otherwise, it is not.
     """
-    if re.match(r'else:', line) is not None:
+    if (line["indents"] > initial_indent or
+            (re.match(r'else:', line["content"]) is not None and
+             line["indents"] == initial_indent)):
         return True
     else:
         return False
@@ -277,16 +281,11 @@ class PseudocodeConverter:
                 block_check = True
                 while block_check and len(lines) > 0:
                     current_line = self.get_current_line(lines)
-                    if (
-                        (current_line["indents"] == start_block_indent and
-                         if_still_in_if_block(current_line["content"])) or
-                        current_line["indents"] > start_block_indent
-                    ):
-                        # Block continues
+                    if in_if_block(current_line, start_block_indent):
                         if_block.append(current_line["content"])
-                    elif current_line["indents"] <= start_block_indent:
-                        # Block has ended
+                    else:
                         block_check = False
+
                 lines_to_append = transform_if_statement(
                     if_block, start_block_indent
                 )
