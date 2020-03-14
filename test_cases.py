@@ -122,7 +122,21 @@ def if_still_in_if_block(line):
         return False
 
 
-def transform_if_statement(lines):
+def transform_if_statement(lines, initial_indent=0):
+    """Transforms the if-statement.
+
+    Key arguments:
+    -- lines: str
+    -- initial_indent: int (default: 0)
+
+    Returns:
+    -- List of dict ([{"content": x, "indents": y}])
+
+    The indents of the lines are to match the original document,
+    and note that the succeeding indents are automatically decided
+    by the function. Thus, only the inital_indent is needed.
+    """
+    print(lines)
     converted_lines = []
 
     #  Establish the first line
@@ -142,25 +156,55 @@ def transform_if_statement(lines):
         condition = items[0].strip() + " = " + items[1].strip()
 
     # Append first line
-    converted_first_line = "IF " + condition
+    converted_first_line = {
+        "content": "IF " + condition,
+        "indents": initial_indent
+    }
     converted_lines.append(converted_first_line)
 
     # Before 'ELSE' statement
-    new_test = []  # Allows for recursion
-    while re.match(r'^else:', lines[0]) is None:
-        new_test.append(lines.pop(0))
+    then_call = {
+        "content": "THEN",
+        "indents": initial_indent + 4
+    }
+    converted_lines.append(then_call)
 
-    pseudocodeConverter = PseudocodeConverter(new_test)
-    then_statements = pseudocodeConverter.get_converted_lines()
+    then_block = []
+    while re.match(r'^else:', lines[0]) is None:
+        then_block.append(lines.pop(0))
+
+    converter = PseudocodeConverter(then_block, initial_indent)
+    then_statements = converter.get_converted_lines()
 
     for statement in then_statements:
-        line = (" " * statement["indents"]) + statement["content"]
-        converted_lines.append(line)
+        statement["indents"] = initial_indent + (2 * 4)
+        converted_lines.append(statement)
+
+    # 'ELSE' statement, if it exists
+    if re.match(r'^else:', lines[0]) is not None:
+        lines.pop(0)
+        else_call = {
+            "content": "ELSE",
+            "indents": initial_indent + 4
+        }
+        converted_lines.append(else_call)
+
+        else_block = []
+        while len(lines) > 0:
+            else_block.append(lines.pop(0))
+
+        pseudocodeConverter = PseudocodeConverter(else_block, initial_indent)
+        else_statements = pseudocodeConverter.get_converted_lines()
+
+        for statement in else_statements:
+            statement["indents"] = initial_indent + (2 * 4)
+            converted_lines.append(statement)
 
     # Final 'ENDIF' statement
-    converted_lines.append('ENDIF')
+    endif_call = {"content": "ENDIF", "indents": initial_indent}
+    converted_lines.append(endif_call)
 
-    print(converted_lines)
+    return converted_lines
 
 
 def transform_identifier(text):
@@ -191,64 +235,70 @@ class PseudocodeConverter:
     converted_lines = []
 
     def __init__(self, lines, initial_indent=0):
-        block_check = False
-        proceed_line = True
+        self.converted_lines = []
         start_block_indent = initial_indent
-        while proceed_line or block_check:
-            proceed_line = False
-
-            if len(lines) <= 0:
-                proceed_line = False
-                block_check = False
-                continue  # Pass while loop
-
-            # Create current_line dictionary
-            current_line = lines.pop(0)
-            if re.findall(r'^\s+', current_line) == []:
-                indents = 0
-            else:
-                indents = len(re.findall(r'^\s+', current_line)[0])
-            current_line = {
-                "content": current_line.lstrip(),
-                "indents": indents
-            }
-
-            if block_check:  # Recursive
-                if (
-                    current_line["indents"] == start_block_indent and
-                    if_still_in_if_block(current_line["content"])
-                ):
-                    self.block_lines.append(current_line["content"])
-                    continue
-                elif current_line["indents"] <= start_block_indent:
-
-                    # Block has ended
-                    block_check = False
-                else:
-                    self.block_lines.append(current_line["content"])
-                    continue
+        while len(lines) > 0:
+            current_line = self.get_current_line(lines)
 
             if test_input(current_line["content"]) is not None:
                 for i in test_input(current_line["content"]):
-                    self.converted_lines.append(i)
+                    line_to_add = {
+                        "content": i,
+                        "indents": current_line["indents"]
+                    }
+                    self.converted_lines.append(line_to_add)
             elif test_print(current_line["content"]) is not None:
-                self.converted_lines.append(
-                    test_print(current_line["content"])
+                current_line["content"] = test_print(
+                    current_line["content"]
                 )
+                self.converted_lines.append(current_line)
             elif test_assignment(current_line["content"]) is not None:
-                current_line["contents"] = test_assignment(
+                current_line["content"] = test_assignment(
                     current_line["content"]
                 )
                 self.converted_lines.append(current_line)
             elif test_if_statement(current_line["content"]):
-                start_block_indent = current_line["indents"]
                 # Check if got elif
 
-                self.block_lines.append(current_line)
-                block_check = True
+                # Initialize if_block
+                if_block = []
+                if_block.append(current_line["content"])
 
-            print("converted", self.converted_lines)
-        print(self.block_lines)
+                start_block_indent = current_line["indents"]
+
+                block_check = True
+                while block_check and len(lines) > 0:
+                    current_line = self.get_current_line(lines)
+                    if (
+                        (current_line["indents"] == start_block_indent and
+                         if_still_in_if_block(current_line["content"])) or
+                        current_line["indents"] > start_block_indent
+                    ):
+                        # Block continues
+                        if_block.append(current_line["content"])
+                    elif current_line["indents"] <= start_block_indent:
+                        # Block has ended
+                        block_check = False
+                lines_to_append = transform_if_statement(
+                    if_block, start_block_indent
+                )
+                for line in lines_to_append:
+                    self.converted_lines.append(line)
+
+            # print(current_line, self.converted_lines)
+
+    def get_current_line(self, lines):
+        current_line = lines.pop(0)
+        if re.findall(r'^\s+', current_line) == []:
+            indents = 0
+        else:
+            indents = len(re.findall(r'^\s+', current_line)[0])
+        current_line = {
+            "content": current_line.lstrip(),
+            "indents": indents
+        }
+
+        return current_line
 
     def get_converted_lines(self):
         """Gets block lines.
@@ -256,9 +306,5 @@ class PseudocodeConverter:
         Returns:
         --block_lines: dict ({"content": x, "indents": y})
         """
-        print("get_block", self.converted_lines)
+        # print("get_converted_lines", self.converted_lines)
         return self.converted_lines
-
-
-test_data = ["if x == \"==y\":", "    a = \"apple\"", "else:", "    do_nothing()"]
-transform_if_statement(test_data)
