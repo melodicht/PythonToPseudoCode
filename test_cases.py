@@ -16,6 +16,9 @@ def test_assignment(line):
 
     A reverse is needed since the type conversion is appended to
     the list first, even though it is meant to be displayed after.
+
+    The type conversion happens on a seperate line from the
+    initial assignment.
     """
     output = []
 
@@ -78,6 +81,19 @@ def test_input(line, var_name):
 
 
 def test_type_conversion(text, var_name):
+    """tests type conversions.
+
+    Key arguments:
+    -- text: str
+    -- var_name: str
+
+    Returns:
+    -- var_name = conversion_type(var_name)
+    -- None (if invalid)
+
+    Since a type conversion always work hand-in-hand with an
+    assignment, so does this function.
+    """
     if (re.match(r'^str', text) is not None and
             re.search(r'^str(.*?)\(', text).group(1) == ""):
         enclosed_str = re.search(r'^str\((.*?)\)$', text).group(1)
@@ -138,6 +154,7 @@ def test_print(line):
 
 
 def check_for_elif(line):
+    """Checks for an elif."""
     if re.match(r'^elif:$', line) is not None:
         return True
 
