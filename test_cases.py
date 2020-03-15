@@ -16,11 +16,18 @@ def test_assignment(line):
         words = line.split('=', 1)  # Split on first occurence
         variable = transform_identifier(words[0]).strip()
         value = match_object.group(1).strip()
-        if value == 'True' or value == 'False':
-            value = value.lower()  # As per pseudocode conventions
+        value = lower_booleans(value)
         return (variable + " <- " + value)
 
     return None
+
+
+def lower_booleans(text):
+    """If text is a bool, lower it."""
+    if text == 'True' or text == 'False':
+        text = text.lower()
+
+    return text
 
 
 def test_print(line):
@@ -134,47 +141,154 @@ def in_if_block(line, initial_indent):
         return False
 
 
+def is_or_is_not(condition):
+    """Differentiates between 'is' or 'is not'."""
+    is_not_compile = re.compile(
+        r'''\b(is not)\b(?=([^"]*"[^"]*")*[^"]*$)(?=([^']*'[^']*')*[^']*$)'''
+    )
+    is_compile = re.compile(
+        r'''\b(is)\b(?=([^"]*"[^"]*")*[^"]*$)(?=([^']*'[^']*')*[^']*$)'''
+    )
+    if is_not_compile.search(condition) is not None:
+        is_not_separator = re.compile(
+            r'''((?:[^\b(is not)\b"']|"[^"]*"|'[^']*')+)'''
+        )
+        items = is_not_separator.split(condition)[1::2]
+        condition1 = transform_identifier(items[0].strip())
+        condition2 = transform_identifier(items[1].strip())
+        condition1 = lower_booleans(condition1)
+        condition2 = lower_booleans(condition2)
+        condition = condition1 + " <> " + condition2
+        return condition
+    elif is_compile.search(condition) is not None:
+        is_separator = re.compile(
+            r'''((?:[^\b(is)\b"']|"[^"]*"|'[^']*')+)'''
+        )
+        items = is_separator.split(condition)[1::2]
+        condition1 = transform_identifier(items[0].strip())
+        condition2 = transform_identifier(items[1].strip())
+        condition1 = lower_booleans(condition1)
+        condition2 = lower_booleans(condition2)
+        condition = condition1 + " = " + condition2
+        return condition
+
+    return None
+
+
+def equal_or_not_equal_to(condition):
+    """Differentiates between 'equal' or 'not equal to'."""
+    equal_to_compile = re.compile(
+        r'''(==)(?=([^"]*"[^"]*")*[^"]*$)(?=([^']*'[^']*')*[^']*$)'''
+    )
+    not_equal_to_compile = re.compile(
+        r'''(!=)(?=([^"]*"[^"]*")*[^"]*$)(?=([^']*'[^']*')*[^']*$)'''
+    )
+    if not_equal_to_compile.search(condition) is not None:
+        not_equal_separator = re.compile(r'''((?:[^!="']|"[^"]*"|'[^']*')+)''')
+        items = not_equal_separator.split(condition)[1::2]
+        condition1 = transform_identifier(items[0].strip())
+        condition2 = transform_identifier(items[1].strip())
+        condition1 = lower_booleans(condition1)
+        condition2 = lower_booleans(condition2)
+        condition = condition1 + " <> " + condition2
+        return condition
+    elif equal_to_compile.search(condition) is not None:
+        equal_separator = re.compile(r'''((?:[^=="']|"[^"]*"|'[^']*')+)''')
+        items = equal_separator.split(condition)[1::2]
+        condition1 = transform_identifier(items[0].strip())
+        condition2 = transform_identifier(items[1].strip())
+        condition1 = lower_booleans(condition1)
+        condition2 = lower_booleans(condition2)
+        condition = condition1 + " = " + condition2
+        return condition
+
+    return None
+
+
+def not_condition(condition):
+    """Checks if there is 'not' in the condition."""
+    not_compile = re.compile(
+        r'''\b(not)\b(?=(?:[^"]*"[^"]*")*[^"]*$)(?=(?:[^']*'[^']*')*[^']*$)''',
+        re.IGNORECASE
+    )
+    if not_compile.search(condition) is not None:
+        condition = transform_identifier(condition.split(" ", 1)[1].strip())
+        condition = lower_booleans(condition)
+        condition = "NOT " + condition
+        return condition
+
+    return None
+
+
+def transform_conditions(conditions):
+    """Transforms the conditions into accepted standards.
+
+    Returns:
+    -- new_conditions: list of str
+    """
+    new_conditions = []
+    for condition in conditions:
+        condition = condition.lstrip()
+        if equal_or_not_equal_to(condition) is not None:
+            condition = equal_or_not_equal_to(condition)
+        elif is_or_is_not(condition) is not None:
+            condition = is_or_is_not(condition)
+        elif not_condition(condition) is not None:
+            condition = not_condition(condition)
+        else:
+            condition = transform_identifier(condition)
+
+        new_conditions.append(condition)
+
+    return new_conditions
+
+
 def transform_if_statement(lines, initial_indent=0):
     """Transforms the if-statement.
 
     Key arguments:
-    -- lines: str
+    -- lines: list of dict ([{"content": x, "indents": y}])
     -- initial_indent: int (default: 0)
 
     Returns:
     -- List of dict ([{"content": x, "indents": y}])
-
-    The indents of the lines are to match the original document,
-    and note that the succeeding indents are automatically decided
-    by the function. Thus, only the inital_indent is needed.
     """
-    print(lines)
     converted_lines = []
 
     #  Establish the first line
-    first_if_line = lines.pop(0)
-    condition = first_if_line.split(' ', 1)[1]
-    condition = condition[:-1]  # Remove the semi-colon
+    first_if_line = lines.pop(0)["content"]
+    conditions = first_if_line.split(' ', 1)[1].strip()
+    conditions = conditions[:-1]  # Remove the semi-colon
 
-    # Check if double equal sign is present
-    # If so, replace it with a single '=' sign
-    rx = re.compile(r'"[^"]+"|([==])')
-    sign = [
-        match.group(1) for match in rx.finditer(condition) if match.group(1)
-    ]
-    if sign == ['=', '=']:
-        equal_separator = re.compile(r'''((?:[^=="']|"[^"]*"|'[^']*')+)''')
-        items = equal_separator.split(condition)[1::2]
-        condition = items[0].strip() + " = " + items[1].strip()
+    # Disect conditions, on 'or' and 'and'
+    logical_operators = re.compile(
+        r'''\b(?:and|or)\b(?=(?:[^"]*"[^"]*")*[^"]*$)(?=(?:[^']*'[^']*')*[^']*$)''',
+        re.IGNORECASE
+    )
+
+    operators_order = logical_operators.findall(conditions)
+    # Turn into array
+    conditions = logical_operators.split(conditions)
+    conditions = transform_conditions(conditions)
+
+    # Stack them into what string
+    full_conditions = ""
+    for i in range(len(operators_order)):
+        full_conditions += conditions[i]
+        full_conditions += " "
+        full_conditions += operators_order[i]
+        full_conditions += " "
+    full_conditions += conditions[-1]
+    conditions = full_conditions
 
     # Append first line
     converted_first_line = {
-        "content": "IF " + condition,
+        "content": "IF " + conditions,
         "indents": initial_indent
     }
     converted_lines.append(converted_first_line)
 
-    # Before 'ELSE' statement
+    # Before 'ELSE' statement, if that exists
     then_call = {
         "content": "THEN",
         "indents": initial_indent + 4
@@ -182,19 +296,25 @@ def transform_if_statement(lines, initial_indent=0):
     converted_lines.append(then_call)
 
     then_block = []
-    while re.match(r'^else:', lines[0]) is None:
-        then_block.append(lines.pop(0))
+    while (len(lines) > 0 and
+            (re.match(r'^else:', lines[0]["content"]) is None or
+             lines[0]["indents"] != initial_indent)):
+        new_dict = lines.pop(0)
+        new_line = " " * new_dict["indents"] + new_dict["content"]
+        then_block.append(new_line)
 
     converter = PseudocodeConverter(then_block, initial_indent)
     then_statements = converter.get_converted_lines()
 
     for statement in then_statements:
-        statement["indents"] = initial_indent + (2 * 4)
+        statement["indents"] = initial_indent + statement["indents"] + 4
         converted_lines.append(statement)
 
     # 'ELSE' statement, if it exists
-    if re.match(r'^else:', lines[0]) is not None:
-        lines.pop(0)
+    if (len(lines) > 0 and
+            (re.match(r'^else:', lines[0]["content"]) is not None and
+             lines[0]["indents"] == initial_indent)):
+        lines.pop(0)  # Remove 'else:' line
         else_call = {
             "content": "ELSE",
             "indents": initial_indent + 4
@@ -203,13 +323,15 @@ def transform_if_statement(lines, initial_indent=0):
 
         else_block = []
         while len(lines) > 0:
-            else_block.append(lines.pop(0))
+            new_dict = lines.pop(0)
+            new_line = (" " * new_dict["indents"]) + new_dict["content"]
+            else_block.append(new_line)
 
         pseudocodeConverter = PseudocodeConverter(else_block, initial_indent)
         else_statements = pseudocodeConverter.get_converted_lines()
 
         for statement in else_statements:
-            statement["indents"] = initial_indent + (2 * 4)
+            statement["indents"] = initial_indent + statement["indents"] + 4
             converted_lines.append(statement)
 
     # Final 'ENDIF' statement
@@ -231,8 +353,14 @@ def transform_identifier(text):
     If none, it will return the very same text.
     Otherwise, it will transform the identifier into camel case format.
     """
-    if re.search(r'\_', text):
-        words = text.split("_")
+    underscore_compile = re.compile(
+        r'''(\_)(?=([^"]*"[^"]*")*[^"]*$)(?=([^']*'[^']*')*[^']*$)'''
+    )
+    if underscore_compile.search(text) is not None:
+        underscore_separator = re.compile(
+            r'''((?:[^\_"']|"[^"]*"|'[^']*')+)'''
+        )
+        words = underscore_separator.split(text)[1::2]
         new_text = words.pop(0)
         for word in words:
             new_text += word.capitalize()
@@ -274,7 +402,7 @@ class PseudocodeConverter:
 
                 # Initialize if_block
                 if_block = []
-                if_block.append(current_line["content"])
+                if_block.append(current_line)
 
                 start_block_indent = current_line["indents"]
 
@@ -282,13 +410,14 @@ class PseudocodeConverter:
                 while block_check and len(lines) > 0:
                     current_line = self.get_current_line(lines)
                     if in_if_block(current_line, start_block_indent):
-                        if_block.append(current_line["content"])
+                        if_block.append(current_line)
                     else:
                         block_check = False
 
                 lines_to_append = transform_if_statement(
                     if_block, start_block_indent
                 )
+
                 for line in lines_to_append:
                     self.converted_lines.append(line)
 

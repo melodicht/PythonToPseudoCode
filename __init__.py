@@ -11,7 +11,6 @@ converted_lines = converter.get_converted_lines()
 
 with open(filename + " pseudocode.txt", 'w') as f:
     for line in converted_lines:
-        print(line)
         text = (" " * line["indents"]) + line["content"]
         f.write(text)
         f.write("\n")  # Create new lines
