@@ -57,19 +57,13 @@ def test_print(line):
 
     text = re.search(r'\((.*?)\)$', line).group(1)
 
-    if re.search(r'\+', text) is not None:
-        items = separate_on_word("+", text)
+    # Deals with concatenations as well
+    items = separate_on_word("+", text)
+    converted_text = transform_identifier(items.pop(0))
+    for item in items:
+        converted_text += (", " + transform_identifier(item))
 
-        # Replacing the old text with converted new text
-        final_text = transform_identifier(items.pop(0))
-        for item in items:
-            final_text += (", " + transform_identifier(item.strip()))
-
-        text = final_text
-    else:
-        text = transform_identifier(text)
-
-    return("OUTPUT " + text)
+    return("OUTPUT " + converted_text)
 
 
 def test_input(line):
@@ -426,7 +420,3 @@ class PseudocodeConverter:
         """
         # print("get_converted_lines", self.converted_lines)
         return self.converted_lines
-
-
-line = "x_cd is z_ab"
-print(is_or_is_not(line))
