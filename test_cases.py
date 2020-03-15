@@ -1,4 +1,5 @@
 import re
+from utility import get_word_compile, check_if_word_exist
 
 
 def test_assignment(line):
@@ -143,13 +144,7 @@ def in_if_block(line, initial_indent):
 
 def is_or_is_not(condition):
     """Differentiates between 'is' or 'is not'."""
-    is_not_compile = re.compile(
-        r'''\b(is not)\b(?=([^"]*"[^"]*")*[^"]*$)(?=([^']*'[^']*')*[^']*$)'''
-    )
-    is_compile = re.compile(
-        r'''\b(is)\b(?=([^"]*"[^"]*")*[^"]*$)(?=([^']*'[^']*')*[^']*$)'''
-    )
-    if is_not_compile.search(condition) is not None:
+    if check_if_word_exist("is not", condition):
         is_not_separator = re.compile(
             r'''((?:[^\b(is not)\b"']|"[^"]*"|'[^']*')+)'''
         )
@@ -160,7 +155,7 @@ def is_or_is_not(condition):
         condition2 = lower_booleans(condition2)
         condition = condition1 + " <> " + condition2
         return condition
-    elif is_compile.search(condition) is not None:
+    elif check_if_word_exist("is", condition):
         is_separator = re.compile(
             r'''((?:[^\b(is)\b"']|"[^"]*"|'[^']*')+)'''
         )
@@ -177,13 +172,7 @@ def is_or_is_not(condition):
 
 def equal_or_not_equal_to(condition):
     """Differentiates between 'equal' or 'not equal to'."""
-    equal_to_compile = re.compile(
-        r'''(==)(?=([^"]*"[^"]*")*[^"]*$)(?=([^']*'[^']*')*[^']*$)'''
-    )
-    not_equal_to_compile = re.compile(
-        r'''(!=)(?=([^"]*"[^"]*")*[^"]*$)(?=([^']*'[^']*')*[^']*$)'''
-    )
-    if not_equal_to_compile.search(condition) is not None:
+    if check_if_word_exist("!=", condition):
         not_equal_separator = re.compile(r'''((?:[^!="']|"[^"]*"|'[^']*')+)''')
         items = not_equal_separator.split(condition)[1::2]
         condition1 = transform_identifier(items[0].strip())
@@ -192,7 +181,7 @@ def equal_or_not_equal_to(condition):
         condition2 = lower_booleans(condition2)
         condition = condition1 + " <> " + condition2
         return condition
-    elif equal_to_compile.search(condition) is not None:
+    elif check_if_word_exist("==", condition):
         equal_separator = re.compile(r'''((?:[^=="']|"[^"]*"|'[^']*')+)''')
         items = equal_separator.split(condition)[1::2]
         condition1 = transform_identifier(items[0].strip())
@@ -207,11 +196,7 @@ def equal_or_not_equal_to(condition):
 
 def not_condition(condition):
     """Checks if there is 'not' in the condition."""
-    not_compile = re.compile(
-        r'''\b(not)\b(?=(?:[^"]*"[^"]*")*[^"]*$)(?=(?:[^']*'[^']*')*[^']*$)''',
-        re.IGNORECASE
-    )
-    if not_compile.search(condition) is not None:
+    if check_if_word_exist("not", condition):
         condition = transform_identifier(condition.split(" ", 1)[1].strip())
         condition = lower_booleans(condition)
         condition = "NOT " + condition
@@ -261,10 +246,7 @@ def transform_if_statement(lines, initial_indent=0):
     conditions = conditions[:-1]  # Remove the semi-colon
 
     # Disect conditions, on 'or' and 'and'
-    logical_operators = re.compile(
-        r'''\b(?:and|or)\b(?=(?:[^"]*"[^"]*")*[^"]*$)(?=(?:[^']*'[^']*')*[^']*$)''',
-        re.IGNORECASE
-    )
+    logical_operators = get_word_compile("and|or", conditions)
 
     operators_order = logical_operators.findall(conditions)
     # Turn into array
@@ -353,10 +335,7 @@ def transform_identifier(text):
     If none, it will return the very same text.
     Otherwise, it will transform the identifier into camel case format.
     """
-    underscore_compile = re.compile(
-        r'''(\_)(?=([^"]*"[^"]*")*[^"]*$)(?=([^']*'[^']*')*[^']*$)'''
-    )
-    if underscore_compile.search(text) is not None:
+    if check_if_word_exist("_", text):
         underscore_separator = re.compile(
             r'''((?:[^\_"']|"[^"]*"|'[^']*')+)'''
         )
