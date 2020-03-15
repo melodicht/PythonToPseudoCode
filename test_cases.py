@@ -144,6 +144,9 @@ def replace_operator_in_condition(original, result, condition):
     -- original: str
     -- result: str
     -- condition: str
+
+    Returns:
+    -- condition: str
     """
     items = separate_on_word(original, condition)
 
@@ -192,6 +195,9 @@ def not_condition(condition):
 
 def convert_conditions(conditions):
     """Transforms the conditions into accepted standards.
+
+    Key argument:
+    -- conditions: list of str
 
     Returns:
     -- new_conditions: list of str
@@ -243,12 +249,11 @@ def transform_all_conditions(conditions):
     return full_conditions
 
 
-def transform_if_statement(lines, initial_indent=0):
+def transform_if_statement(lines):
     """Transforms the if-statement.
 
     Key arguments:
     -- lines: list of dict ([{"content": x, "indents": y}])
-    -- initial_indent: int (default: 0)
 
     Returns:
     -- List of dict ([{"content": x, "indents": y}])
@@ -396,7 +401,7 @@ class PseudocodeConverter:
 
                 # Convert the if_block into pseudocode
                 converted_lines = transform_if_statement(
-                    if_block, start_block_indent
+                    if_block
                 )
 
                 for line in converted_lines:
