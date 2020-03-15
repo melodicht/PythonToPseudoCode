@@ -1,4 +1,5 @@
 import re
+import itertools
 from utility import get_word_compile, check_if_word_exist, separate_on_word
 
 
@@ -10,15 +11,82 @@ def test_assignment(line):
 
     This works for all types of variables.
     If it is a boolean, it will lowered case.
-    Functions have not been taken into consideration as of now.
+    Functions, except for input,
+    have not been taken into consideration as of now.
     """
+    output = []
+
     match_object = re.search(r'^\w+ = (.*?)$', line)
     if match_object is not None:
         words = line.split('=', 1)  # Split on first occurence
         variable = transform_identifier(words[0]).strip()
-        value = match_object.group(1).strip()
-        value = lower_booleans(value)
-        return (variable + " <- " + value)
+        value = transform_identifier(match_object.group(1).strip())
+
+        if test_type_conversion(value, variable) is not None:
+            conversion_str = test_type_conversion(value, variable)
+            output.append([variable + " <- " + conversion_str])
+            value = re.search(r'^[a-z]+\((.*?)\)$', value).group(1)
+
+        if test_input(value, variable) is not None:
+            output.append(test_input(value, variable))
+        else:
+            value = lower_booleans(value)  # If bool
+            output.append([variable + " <- " + value])
+
+        # Reverse and flatten the list
+        output.reverse()
+        output = list(itertools.chain.from_iterable(output))
+
+        return output
+
+    return None
+
+
+def test_input(line, var_name):
+    """Checks to see if there is the input() function.
+
+    Key argument:
+    -- line: str
+
+    If there is a parameter in the input function,
+    then it will be displayed as 'OUTPUT X',
+    where X is the parameter, as per the conventions.
+    Ultimately, it will lead to 'INPUT var',
+    where var is the variable to store
+    the return value of the input() function.
+
+    Concatenations accepted.
+    """
+    # If conditions are unmet, return None
+    if re.match(r'^input', line) is None:
+        return None
+    elif re.search(r'^input(.*?)\(', line).group(1) != "":
+        return None
+
+    output = []  # Array needed since it return two lines
+    quotation = re.search(r'input\((.*?)\)$', line).group(1)
+
+    if quotation != "":
+        output.append("OUTPUT " + quotation)
+
+    output.append("INPUT " + var_name)
+
+    return output
+
+
+def test_type_conversion(text, var_name):
+    if (re.match(r'^str', text) is not None and
+            re.search(r'^str(.*?)\(', text).group(1) == ""):
+        enclosed_str = re.search(r'^str\((.*?)\)$', text).group(1)
+        text = text.replace("str", "NUM_TO_STRING", 1)
+        text = text.replace(enclosed_str, var_name)
+        return text
+    elif (re.match(r'^int', text) is not None and
+            re.search(r'^int(.*?)\(', text).group(1) == ""):
+        enclosed_str = re.search(r'^int\((.*?)\)$', text).group(1)
+        text = text.replace("int", "STRING_TO_NUM", 1)
+        text = text.replace(enclosed_str, var_name)
+        return text
 
     return None
 
@@ -64,42 +132,6 @@ def test_print(line):
         converted_text += (", " + transform_identifier(item))
 
     return("OUTPUT " + converted_text)
-
-
-def test_input(line):
-    """Checks to see if there is the input() function.
-
-    Key argument:
-    -- line: str
-
-    If there is a parameter in the input function,
-    then it will be displayed as 'OUTPUT X',
-    where X is the parameter, as per the conventions.
-    Ultimately, it will lead to 'INPUT var',
-    where var is the variable to store
-    the return value of the input() function.
-
-    Concatenations accepted.
-    """
-    # If conditions are unmet, return None
-    if re.match(r'^[a-zA-Z0-9\_]+ = input', line) is None:
-        return None
-    elif re.search(r'^[a-zA-Z0-9\_]+ = input(.*?)\(', line).group(1) != "":
-        return None
-
-    output = []  # Array needed since it return two lines
-    quotation = re.search(r'input\((.*?)\)$', line).group(1)
-
-    words = line.split('=', 1)  # Split on first occurence
-    # Since the first word is the variable
-    variable = transform_identifier(words[0].strip())
-
-    if quotation != "":
-        output.append("OUTPUT " + quotation)
-
-    output.append("INPUT " + variable)
-
-    return output
 
 
 def test_if_statement(line):
@@ -364,23 +396,18 @@ class PseudocodeConverter:
             # Split indent information and content
             current_line = self.get_current_line(lines)
 
-            if test_input(current_line["content"]) is not None:
-                for i in test_input(current_line["content"]):
-                    line_to_add = {
-                        "content": i,
-                        "indents": current_line["indents"]
-                    }
-                    self.converted_lines.append(line_to_add)
-            elif test_print(current_line["content"]) is not None:
+            if test_print(current_line["content"]) is not None:
                 current_line["content"] = test_print(
                     current_line["content"]
                 )
                 self.converted_lines.append(current_line)
             elif test_assignment(current_line["content"]) is not None:
-                current_line["content"] = test_assignment(
-                    current_line["content"]
-                )
-                self.converted_lines.append(current_line)
+                for i in test_assignment(current_line["content"]):
+                    converted_line = {
+                        "content": i,
+                        "indents": current_line["indents"]
+                    }
+                    self.converted_lines.append(converted_line)
             elif test_if_statement(current_line["content"]):
                 # Check if got elif
 
