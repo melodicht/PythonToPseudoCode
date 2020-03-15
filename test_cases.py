@@ -87,7 +87,7 @@ def test_input(line):
     elif re.search(r'^[a-zA-Z0-9\_]+ = input(.*?)\(', line).group(1) != "":
         return None
 
-    output = []
+    output = []  # Array needed since it return two lines
     quotation = re.search(r'input\((.*?)\)$', line).group(1)
 
     words = line.split('=', 1)  # Split on first occurence
@@ -122,8 +122,9 @@ def in_if_block(line, initial_indent):
 
     Key argument:
     -- line: dict ({"content": x, "indents": y})
+    -- initial_indent: int
 
-    If it is further tabbed or it is on the same line,
+    If it is further tabbed, or it is on the same line
     and is the "else:" statement,
     then it is still in the if-block.
     Otherwise, it is not.
@@ -189,7 +190,7 @@ def not_condition(condition):
     return None
 
 
-def transform_conditions(conditions):
+def convert_conditions(conditions):
     """Transforms the conditions into accepted standards.
 
     Returns:
@@ -212,6 +213,36 @@ def transform_conditions(conditions):
     return new_conditions
 
 
+def transform_all_conditions(conditions):
+    """Transforms all the conditions.
+
+    Key argument:
+    -- conditions: list of str
+
+    The logical operators and the conditions are first separated.
+    Then, each conditions are converted.
+    They are then put back together in their respective order.
+    """
+    # Saving the order of the logical operators
+    logical_operators = get_word_compile("and|or", conditions)
+    operators_order = logical_operators.findall(conditions)
+
+    # Turn conditions into an array, ignoring the operators
+    conditions = separate_on_word("and|or", conditions)
+    conditions = convert_conditions(conditions)
+
+    # Stack them into a string
+    full_conditions = ""
+    for i in range(len(operators_order)):
+        full_conditions += conditions[i]
+        full_conditions += " "
+        full_conditions += operators_order[i]
+        full_conditions += " "
+    full_conditions += conditions[-1]
+
+    return full_conditions
+
+
 def transform_if_statement(lines, initial_indent=0):
     """Transforms the if-statement.
 
@@ -225,27 +256,13 @@ def transform_if_statement(lines, initial_indent=0):
     converted_lines = []
 
     #  Establish the first line
-    first_if_line = lines.pop(0)["content"]
-    conditions = first_if_line.split(' ', 1)[1].strip()
+    first_if_line = lines.pop(0)
+    initial_indent = first_if_line["indents"]
+    line_str = first_if_line["content"]
+    conditions = line_str.split(' ', 1)[1].strip()
     conditions = conditions[:-1]  # Remove the semi-colon
 
-    # Disect conditions, on 'or' and 'and'
-    logical_operators = get_word_compile("and|or", conditions)
-
-    operators_order = logical_operators.findall(conditions)
-    # Turn into array
-    conditions = separate_on_word("and|or", conditions)
-    conditions = transform_conditions(conditions)
-
-    # Stack them into what string
-    full_conditions = ""
-    for i in range(len(operators_order)):
-        full_conditions += conditions[i]
-        full_conditions += " "
-        full_conditions += operators_order[i]
-        full_conditions += " "
-    full_conditions += conditions[-1]
-    conditions = full_conditions
+    conditions = transform_all_conditions(conditions)
 
     # Append first line
     converted_first_line = {
@@ -254,26 +271,28 @@ def transform_if_statement(lines, initial_indent=0):
     }
     converted_lines.append(converted_first_line)
 
-    # Before 'ELSE' statement, if that exists
+    # 'THEN' statement
     then_call = {
         "content": "THEN",
         "indents": initial_indent + 4
     }
     converted_lines.append(then_call)
 
+    # The lines that go in the 'THEN' block
     then_block = []
     while (len(lines) > 0 and
             (re.match(r'^else:', lines[0]["content"]) is None or
              lines[0]["indents"] != initial_indent)):
-        new_dict = lines.pop(0)
-        new_line = " " * new_dict["indents"] + new_dict["content"]
-        then_block.append(new_line)
+        current_line = lines.pop(0)
+        line_str = " " * current_line["indents"] + current_line["content"]
+        then_block.append(line_str)
 
-    converter = PseudocodeConverter(then_block, initial_indent)
+    converter = PseudocodeConverter(then_block)
     then_statements = converter.get_converted_lines()
 
     for statement in then_statements:
-        statement["indents"] = initial_indent + statement["indents"] + 4
+        # Add an indent for conventions
+        statement["indents"] = statement["indents"] + 4
         converted_lines.append(statement)
 
     # 'ELSE' statement, if it exists
@@ -293,11 +312,12 @@ def transform_if_statement(lines, initial_indent=0):
             new_line = (" " * new_dict["indents"]) + new_dict["content"]
             else_block.append(new_line)
 
-        pseudocodeConverter = PseudocodeConverter(else_block, initial_indent)
+        pseudocodeConverter = PseudocodeConverter(else_block)
         else_statements = pseudocodeConverter.get_converted_lines()
 
         for statement in else_statements:
-            statement["indents"] = initial_indent + statement["indents"] + 4
+            # Add an indent for conventions
+            statement["indents"] = statement["indents"] + 4
             converted_lines.append(statement)
 
     # Final 'ENDIF' statement
@@ -334,13 +354,12 @@ def transform_identifier(text):
 
 
 class PseudocodeConverter:
-    block_lines = []
     converted_lines = []
 
-    def __init__(self, lines, initial_indent=0):
+    def __init__(self, lines):
         self.converted_lines = []
-        start_block_indent = initial_indent
         while len(lines) > 0:
+            # Split indent information and content
             current_line = self.get_current_line(lines)
 
             if test_input(current_line["content"]) is not None:
@@ -369,6 +388,7 @@ class PseudocodeConverter:
 
                 start_block_indent = current_line["indents"]
 
+                # Populate the if_block
                 block_check = True
                 while block_check and len(lines) > 0:
                     current_line = self.get_current_line(lines)
@@ -377,14 +397,13 @@ class PseudocodeConverter:
                     else:
                         block_check = False
 
-                lines_to_append = transform_if_statement(
+                # Convert the if_block into pseudocode
+                converted_lines = transform_if_statement(
                     if_block, start_block_indent
                 )
 
-                for line in lines_to_append:
+                for line in converted_lines:
                     self.converted_lines.append(line)
-
-            # print(current_line, self.converted_lines)
 
     def get_current_line(self, lines):
         """Gets the current line.
@@ -416,7 +435,7 @@ class PseudocodeConverter:
         """Gets block lines.
 
         Returns:
-        --block_lines: dict ({"content": x, "indents": y})
+        --converted_lines: dict ({"content": x, "indents": y})
         """
         # print("get_converted_lines", self.converted_lines)
         return self.converted_lines
