@@ -340,10 +340,7 @@ def transform_identifier(text):
     Otherwise, it will transform the identifier into camel case format.
     """
     if check_if_word_exist("_", text):
-        underscore_separator = re.compile(
-            r'''((?:[^\_"']|"[^"]*"|'[^']*')+)'''
-        )
-        words = underscore_separator.split(text)[1::2]
+        words = separate_on_word("_", text)
         new_text = words.pop(0)
         for word in words:
             new_text += word.capitalize()
