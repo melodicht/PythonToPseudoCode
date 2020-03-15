@@ -16,6 +16,7 @@ def get_word_compile(word, line):
 
     This function works for symbol-mixed-with-words strings.
     """
+    word = re.escape(word)
     # If words (or space) only
     if all(c.isalpha() or c.isspace() for c in word):
         word_compile = re.compile(
@@ -25,7 +26,7 @@ def get_word_compile(word, line):
         return word_compile
     else:
         symbol_compile = re.compile(
-            rf'''({word})(?=(?:[^"]*"[^"]*")*[^"]*$)(?=(?:[^']*'[^']*')*[^']*$)'''
+            rf'''(?:{word})(?=(?:[^"]*"[^"]*")*[^"]*$)(?=(?:[^']*'[^']*')*[^']*$)'''
         )
         return symbol_compile
 
@@ -47,5 +48,16 @@ def check_if_word_exist(word, line):
         return False
 
 
-line = "bananasplit"
-print(check_if_word_exist("_", line))
+def separate_on_word(word, line):
+    """Separate lines based on a word.
+
+    Key arguments:
+    -- word: str (can be a symbol)
+    -- line: str
+
+    The word itself is not kept in the array.
+    """
+    separator = get_word_compile(word, line)
+    items = separator.split(line)
+
+    return [i.strip() for i in items]

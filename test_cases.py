@@ -1,5 +1,5 @@
 import re
-from utility import get_word_compile, check_if_word_exist
+from utility import get_word_compile, check_if_word_exist, separate_on_word
 
 
 def test_assignment(line):
@@ -58,10 +58,10 @@ def test_print(line):
     text = re.search(r'\((.*?)\)$', line).group(1)
 
     if re.search(r'\+', text) is not None:
-        # Plus signs inside quotes are not counted
-        plus_separator = re.compile(r'''((?:[^\+"']|"[^"]*"|'[^']*')+)''')
-        items = plus_separator.split(text)[1::2]
-        final_text = transform_identifier(items.pop(0).strip())
+        items = separate_on_word("+", text)
+
+        # Replacing the old text with converted new text
+        final_text = transform_identifier(items.pop(0))
         for item in items:
             final_text += (", " + transform_identifier(item.strip()))
 
@@ -142,30 +142,34 @@ def in_if_block(line, initial_indent):
         return False
 
 
+def replace_operator_in_condition(original, result, condition):
+    """Replaces the operator.
+
+    Key arguments:
+    -- original: str
+    -- result: str
+    -- condition: str
+    """
+    items = separate_on_word(original, condition)
+
+    # Transforms to the identifier to meet conventions
+    condition1 = transform_identifier(items[0])
+    condition2 = transform_identifier(items[1])
+
+    # If it is a bool, lower it
+    condition1 = lower_booleans(condition1)
+    condition2 = lower_booleans(condition2)
+
+    condition = condition1 + " " + result + " " + condition2
+    return condition
+
+
 def is_or_is_not(condition):
     """Differentiates between 'is' or 'is not'."""
     if check_if_word_exist("is not", condition):
-        is_not_separator = re.compile(
-            r'''((?:[^\b(is not)\b"']|"[^"]*"|'[^']*')+)'''
-        )
-        items = is_not_separator.split(condition)[1::2]
-        condition1 = transform_identifier(items[0].strip())
-        condition2 = transform_identifier(items[1].strip())
-        condition1 = lower_booleans(condition1)
-        condition2 = lower_booleans(condition2)
-        condition = condition1 + " <> " + condition2
-        return condition
+        return replace_operator_in_condition("is not", "<>", condition)
     elif check_if_word_exist("is", condition):
-        is_separator = re.compile(
-            r'''((?:[^\b(is)\b"']|"[^"]*"|'[^']*')+)'''
-        )
-        items = is_separator.split(condition)[1::2]
-        condition1 = transform_identifier(items[0].strip())
-        condition2 = transform_identifier(items[1].strip())
-        condition1 = lower_booleans(condition1)
-        condition2 = lower_booleans(condition2)
-        condition = condition1 + " = " + condition2
-        return condition
+        return replace_operator_in_condition("is", "=", condition)
 
     return None
 
@@ -173,23 +177,9 @@ def is_or_is_not(condition):
 def equal_or_not_equal_to(condition):
     """Differentiates between 'equal' or 'not equal to'."""
     if check_if_word_exist("!=", condition):
-        not_equal_separator = re.compile(r'''((?:[^!="']|"[^"]*"|'[^']*')+)''')
-        items = not_equal_separator.split(condition)[1::2]
-        condition1 = transform_identifier(items[0].strip())
-        condition2 = transform_identifier(items[1].strip())
-        condition1 = lower_booleans(condition1)
-        condition2 = lower_booleans(condition2)
-        condition = condition1 + " <> " + condition2
-        return condition
+        return replace_operator_in_condition("!=", "<>", condition)
     elif check_if_word_exist("==", condition):
-        equal_separator = re.compile(r'''((?:[^=="']|"[^"]*"|'[^']*')+)''')
-        items = equal_separator.split(condition)[1::2]
-        condition1 = transform_identifier(items[0].strip())
-        condition2 = transform_identifier(items[1].strip())
-        condition1 = lower_booleans(condition1)
-        condition2 = lower_booleans(condition2)
-        condition = condition1 + " = " + condition2
-        return condition
+        return replace_operator_in_condition("==", "=", condition)
 
     return None
 
@@ -213,7 +203,7 @@ def transform_conditions(conditions):
     """
     new_conditions = []
     for condition in conditions:
-        condition = condition.lstrip()
+        condition = condition.strip()
         if equal_or_not_equal_to(condition) is not None:
             condition = equal_or_not_equal_to(condition)
         elif is_or_is_not(condition) is not None:
@@ -250,7 +240,7 @@ def transform_if_statement(lines, initial_indent=0):
 
     operators_order = logical_operators.findall(conditions)
     # Turn into array
-    conditions = logical_operators.split(conditions)
+    conditions = separate_on_word("and|or", conditions)
     conditions = transform_conditions(conditions)
 
     # Stack them into what string
@@ -422,7 +412,7 @@ class PseudocodeConverter:
         else:
             indents = len(re.findall(r'^\s+', current_line)[0])
         current_line = {
-            "content": current_line.lstrip(),
+            "content": current_line.strip(),
             "indents": indents
         }
 
@@ -436,3 +426,7 @@ class PseudocodeConverter:
         """
         # print("get_converted_lines", self.converted_lines)
         return self.converted_lines
+
+
+line = "x_cd is z_ab"
+print(is_or_is_not(line))
