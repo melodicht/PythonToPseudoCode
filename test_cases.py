@@ -13,6 +13,9 @@ def test_assignment(line):
     If it is a boolean, it will lowered case.
     Functions, except for input,
     have not been taken into consideration as of now.
+
+    A reverse is needed since the type conversion is appended to
+    the list first, even though it is meant to be displayed after.
     """
     output = []
 
@@ -132,6 +135,11 @@ def test_print(line):
         converted_text += (", " + transform_identifier(item))
 
     return("OUTPUT " + converted_text)
+
+
+def check_for_elif(line):
+    if re.match(r'^elif:$', line) is not None:
+        return True
 
 
 def test_if_statement(line):
@@ -364,6 +372,34 @@ def transform_if_statement(lines):
     return converted_lines
 
 
+def transform_case(lines):
+    """Transforms elif statements into case of statement.
+
+    DUE TO TIME CONSTRAINTS,
+    THIS FUNCTION IS LEFT UNFINISHED.
+    """
+    converted_lines = []
+
+    # Establish first line
+    first_line = lines.pop(0)
+    initial_indent = first_line["indents"]
+    # Remove semi-colon
+    first_line_str = first_line["content"][:-1]
+
+    if check_if_word_exist('not', first_line_str):
+        variable_name = first_line_str.split(" ")[2]
+    else:
+        variable_name = first_line_str.split(" ")[1]
+
+    variable_name = transform_identifier(variable_name.strip())
+
+    case_of_call = {
+        "content": "CASE OF " + variable_name,
+        "indents": initial_indent
+    }
+    converted_lines.append(case_of_call)
+
+
 def transform_identifier(text):
     """Transforms the identifier to meet conventions.
 
@@ -409,7 +445,7 @@ class PseudocodeConverter:
                     }
                     self.converted_lines.append(converted_line)
             elif test_if_statement(current_line["content"]):
-                # Check if got elif
+                elif_statement = False
 
                 # Initialize if_block
                 if_block = []
@@ -421,15 +457,25 @@ class PseudocodeConverter:
                 block_check = True
                 while block_check and len(lines) > 0:
                     current_line = self.get_current_line(lines)
+
+                    if check_for_elif(current_line["content"]):
+                        elif_statement = True
+
                     if in_if_block(current_line, start_block_indent):
                         if_block.append(current_line)
                     else:
                         block_check = False
 
                 # Convert the if_block into pseudocode
-                converted_lines = transform_if_statement(
-                    if_block
-                )
+                if elif_statement:
+                    # UNFINISHED!
+                    converted_lines = transform_case(
+                        if_block
+                    )
+                else:
+                    converted_lines = transform_if_statement(
+                        if_block
+                    )
 
                 for line in converted_lines:
                     self.converted_lines.append(line)
